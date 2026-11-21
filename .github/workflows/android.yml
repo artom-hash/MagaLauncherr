@@ -1,1 +1,43 @@
+name: Build MagaLauncher APK
 
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Prepare project
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y unzip
+          mkdir -p extracted
+          ZIP=$(find . -maxdepth 2 -type f -name "*.zip" | head -n 1)
+          if [ -z "$ZIP" ]; then
+            echo "ZIP archive not found"
+            exit 1
+          fi
+          unzip -q "$ZIP" -d extracted
+          WRAPPER=$(find extracted -type f -name "gradlew" | head -n 1)
+          if [ -z "$WRAPPER" ]; then
+            echo "gradlew not found"
+            exit 1
+          fi
+          PROJECT=$(dirname "$WRAPPER")
+          echo "PROJECT=$PROJECT" >> "$GITHUB_ENV"
+
+      - name: Build APK
+        run: |
+          cd "$PROJECT"
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: MagaLauncher-APK
+          path: extracted/**/build/outputs/apk/debug/*.apk
